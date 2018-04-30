@@ -20,7 +20,8 @@ class JerkAgent():
         self.env = grc.RemoteEnv('tmp/sock')
         self.env = TrackedEnv(self.env)
         self.backoff_steps = 1
-        self.speed_threshold = 1
+        self.grace_coeff = 2
+        self.speed_threshold = 50
 
     def run(self):
         """Run JERK on the attached environment."""
@@ -35,17 +36,31 @@ class JerkAgent():
                     new_rew = self.exploit(best_pair[1])
                     best_pair[0].append(new_rew)
                     print('replayed best with reward %f' % new_rew)
+                    continue
                 else:
                     self.reset()
                     new_ep = False
-            rew, new_ep = self.move(100)
-            return
+            rew, new_ep = self.move(100, left=False)
             if not new_ep and rew <= 0:
-                print('backtracking due to negative reward: %f' % rew)
-                self.backoff_steps *= 2
-                _, new_ep = self.move(self.backoff_steps, left=True)
+                print('backtracking due to negative or zero reward: %f' % rew)
+                _, new_ep = self.exponential_backoff()
+                # _, new_ep = self.move(self.backoff_steps, left=True)
             if new_ep:
                 solutions.append(([max(self.env.reward_history)], self.env.best_sequence()))
+
+    def exponential_backoff(self):
+        backtrack_start_interval = self.env.total_steps_ever
+        self.backoff_steps *= 2
+        # first backtrack
+        total_rew, new_ep = self.move(self.backoff_steps, left=True)
+        # grace period is 2x the number of backtracked steps
+        while self.env.total_steps_ever - backtrack_start_interval < self.grace_coeff * self.backoff_steps:
+            rew, new_ep = self.move(100, left=False)
+            total_rew += rew
+            if new_ep: # exit early if we finish early
+                return total_rew, new_ep
+
+        return total_rew, new_ep
 
 
     def reset(self):
@@ -80,8 +95,7 @@ class JerkAgent():
                 if random.random() < jump_prob:
                     jumping_steps_left = jump_repeat - 1
                     action[0] = True
-            obs, rew, done, info = self.env.step(action)
-            np.savetxt('obs%s' % str(steps_taken), obs, delimiter=',')
+            _, rew, done, _ = self.env.step(action)
             # horizontal speed?
             is_moving_fast = abs(prev_rew - rew) >= self.speed_threshold
             prev_rew = rew
@@ -93,13 +107,19 @@ class JerkAgent():
 
     def exploit(self, sequence):
         """
-        Replay an action sequence; pad with NOPs if needed.
+        Replay an action sequence.
 
         Returns the final cumulative reward.
         """
         self.reset()
-        for i in range(len(sequence)):
-            _, _, done, _ = self.env.step(sequence[i])
+        done = False
+        idx = 0
+        while not done:
+            if idx >= len(sequence):
+                _, _, done, _ = self.env.step(np.zeros((12,), dtype='bool'))
+            else:
+                _, _, done, _ = self.env.step(sequence[idx])
+            idx += 1
         return self.env.total_reward
 
 class TrackedEnv(gym.Wrapper):
