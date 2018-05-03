@@ -1,0 +1,4 @@
+FROM openai/retro-agent:bare
+ADD jerk_grid_search.py ./agent.py
+ADD jr2jp1ep0.4 ./params.json
+CMD ["python", "-u", "/root/compo/agent.py"]

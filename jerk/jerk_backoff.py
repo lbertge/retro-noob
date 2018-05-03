@@ -39,29 +39,32 @@ class JerkAgent():
                     continue
                 else:
                     self.reset()
+                    print('Timesteps elapsed: %s' % self.env.total_steps_ever)
                     new_ep = False
             rew, new_ep = self.move(100, left=False)
             if not new_ep and rew <= 0:
                 print('backtracking due to negative or zero reward: %f' % rew)
                 _, new_ep = self.exponential_backoff()
                 # _, new_ep = self.move(self.backoff_steps, left=True)
+                print('Timesteps elapsed: %s' % self.env.total_steps_ever)
             if new_ep:
                 solutions.append(([max(self.env.reward_history)], self.env.best_sequence()))
+        print('total timesteps elapsed: %s' % self.env.total_steps_ever)
 
     def exponential_backoff(self):
         backtrack_start_interval = self.env.total_steps_ever
         self.backoff_steps *= 2
         # first backtrack
         total_rew, new_ep = self.move(self.backoff_steps, left=True)
+        if new_ep:
+            return total_rew, new_ep
         # grace period is 2x the number of backtracked steps
         while self.env.total_steps_ever - backtrack_start_interval < self.grace_coeff * self.backoff_steps:
             rew, new_ep = self.move(100, left=False)
             total_rew += rew
             if new_ep: # exit early if we finish early
                 return total_rew, new_ep
-
         return total_rew, new_ep
-
 
     def reset(self):
         self.backoff_steps = 1
