@@ -8,7 +8,6 @@ import tensorflow as tf
 
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
 import baselines.ppo2.ppo2 as ppo2
-from baselines import logger
 import baselines.ppo2.policies as policies
 import gym_remote.exceptions as gre
 import os
@@ -19,45 +18,25 @@ def main():
     """Run PPO until the environment throws an exception."""
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True # pylint: disable=E1101
-    log = logger.Logger('.', ['stdout'])
-    logger.Logger.CURRENT = log
-
-    env = DummyVecEnv([make_env])
-
-    print(env.num_envs)
-    print(env.observation_space)
-    print(env.action_space)
 
     with tf.Session(config=config):
         # Take more timesteps than we need to be sure that
         # we stop due to an exception.
-        # ppo2.learn(policy=policies.CnnPolicy,
-                   # env=DummyVecEnv([make_env]),
-                   # nsteps=4096,
-                   # nminibatches=8,
-                   # lam=0.95,
-                   # gamma=0.99,
-                   # noptepochs=3,
-                   # log_interval=1,
-                   # ent_coef=0.01,
-                   # lr=lambda _: 2e-4,
-                   # cliprange=lambda _: 0.1,
-                   # total_timesteps=int(1e4),
-                   # save_interval=1,
-                   # load_path='params')
-
-        model = ppo2.Model(policy=policies.CnnPolicy,
-                   ob_space=env.observation_space,
-                   ac_space=env.action_space,
-                   nbatch_act=1,
+        ppo2.learn(policy=policies.CnnPolicy,
+                   env=DummyVecEnv([make_env]),
                    nsteps=4096,
-                   nbatch_train=4096 // 4,
+                   nminibatches=8,
+                   lam=0.95,
+                   gamma=0.99,
+                   noptepochs=3,
+                   log_interval=1,
                    ent_coef=0.01,
-                   vf_coef=0.5,
-                   max_grad_norm=0.5)
+                   lr=lambda _: 2e-4,
+                   cliprange=lambda _: 0.1,
+                   total_timesteps=int(1e7),
+                   load_path='params')
 
         print(tf.trainable_variables())
-        model2 = utils.load_state(os.getcwd() + '/params')
 
 if __name__ == '__main__':
     try:

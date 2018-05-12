@@ -15,6 +15,7 @@ import baselines.ppo2.ppo2 as ppo2
 import baselines.ppo2.policies as policies
 from baselines.deepq import utils
 import gym_remote.exceptions as gre
+import os
 
 from sonic_util import make_env, SonicDiscretizer
 
@@ -22,12 +23,15 @@ def main():
     """Run PPO until the environment throws an exception."""
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True # pylint: disable=E1101
-    env = make(game='SonicTheHedgehog-Genesis', state='LabyrinthZone.Act1')
+    env = make(game='SonicTheHedgehog-Genesis', state='LabyrinthZone.Act1', bk2dir='.')
     env = SonicDiscretizer(env)
     env = WarpFrame(env)
     env = FrameStack(env, 4)
-    log = logger.Logger('ppo_v4.1/', ['stdout'])
-    logger.Logger.CURRENT = log
+
+    dir_prefix = '../params/'
+    params_folder = 'ppo_v1'
+    logger.configure(dir_prefix + params_folder, format_strs=['stdout'])
+
 
     print(logger.get_dir())
 
@@ -41,8 +45,8 @@ def main():
     print(tmpEnv.action_space)
 
     with tf.Session(config=config):
-        Take more timesteps than we need to be sure that
-        we stop due to an exception.
+        # Take more timesteps than we need to be sure that
+        # we stop due to an exception.
         ppo2.learn(policy=policies.CnnPolicy,
                    env=DummyVecEnv([env_fn]),
                    nsteps=4096,
@@ -54,8 +58,9 @@ def main():
                    ent_coef=0.01,
                    lr=lambda _: 2e-4,
                    cliprange=lambda _: 0.1,
-                   total_timesteps=int(1e7),
-                   save_interval=100)
+                   total_timesteps=int(5000),
+                   save_interval=100,
+                   load_path='params/ppo_v1/checkpoints/02300')
         # utils.save_state('/home/noob/retro-noob/ppo/params')
 
         # model = ppo2.Model(policy=policies.CnnPolicy,

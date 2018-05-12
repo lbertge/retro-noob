@@ -13,8 +13,6 @@ RUN . ~/venv/bin/activate && \
 
 ADD ppo2_agent.py ./agent.py
 ADD sonic_util.py .
-ADD params.meta .
-ADD params.data-00000-of-00001 .
-ADD params.index .
+ADD params/ppo_v1/checkpoints/02300 ./params
 
 CMD ["python", "-u", "/root/compo/agent.py"]
