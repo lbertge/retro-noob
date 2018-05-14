@@ -15,34 +15,28 @@ import baselines.ppo2.ppo2 as ppo2
 import baselines.ppo2.policies as policies
 from baselines.deepq import utils
 import gym_remote.exceptions as gre
+import glob
 import os
 
-from sonic_util import make_env, SonicDiscretizer
+from sonic_util import make_local_env, SonicDiscretizer, RewardScaler
 
-def main():
+def main(game, state, timesteps = 5000, save_interval = 1, last_dir=None, params_folder = None):
     """Run PPO until the environment throws an exception."""
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True # pylint: disable=E1101
-    env = make(game='SonicTheHedgehog-Genesis', state='LabyrinthZone.Act1', bk2dir='.')
-    env = SonicDiscretizer(env)
-    env = WarpFrame(env)
-    env = FrameStack(env, 4)
+    env = make(game=game, state=state)
+    env = make_local_env(env, stack=True, scale_rew=True)
 
-    dir_prefix = '../params/'
-    params_folder = 'ppo_v1'
-    logger.configure(dir_prefix + params_folder, format_strs=['stdout'])
-
-
-    print(logger.get_dir())
+    logger.configure(params_folder, format_strs=['stdout'])
 
     def env_fn():
         return env
 
-    tmpEnv = DummyVecEnv([env_fn])
-
-    print(tmpEnv.num_envs)
-    print(tmpEnv.observation_space)
-    print(tmpEnv.action_space)
+    load_path = None
+    if last_dir:
+        list_of_params = glob.glob(last_dir + '/checkpoints/*')
+        load_path = max(list_of_params, key=os.path.getctime)
+        print('Restoring params from ', load_path)
 
     with tf.Session(config=config):
         # Take more timesteps than we need to be sure that
@@ -58,9 +52,9 @@ def main():
                    ent_coef=0.01,
                    lr=lambda _: 2e-4,
                    cliprange=lambda _: 0.1,
-                   total_timesteps=int(5000),
-                   save_interval=100,
-                   load_path='params/ppo_v1/checkpoints/02300')
+                   total_timesteps=timesteps,
+                   save_interval=save_interval,
+                   load_path=load_path)
         # utils.save_state('/home/noob/retro-noob/ppo/params')
 
         # model = ppo2.Model(policy=policies.CnnPolicy,

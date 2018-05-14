@@ -21,6 +21,19 @@ def make_env(stack=True, scale_rew=True):
         env = FrameStack(env, 4)
     return env
 
+def make_local_env(env, stack=True, scale_rew=True):
+    """
+    Create an environment with some standard wrappers, without requiring a container environment.
+    """
+    assert env is not None
+    env = SonicDiscretizer(env)
+    if scale_rew:
+        env = RewardScaler(env)
+    env = WarpFrame(env)
+    if stack:
+        env = FrameStack(env, 4)
+    return env
+
 class SonicDiscretizer(gym.ActionWrapper):
     """
     Wrap a gym-retro environment and make it use discrete
