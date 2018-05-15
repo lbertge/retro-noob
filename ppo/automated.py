@@ -13,14 +13,14 @@ def run(base_dir):
     last_dir = None
 
     for index, row in df.iterrows():
-        print("Playing ", row.game, row.state)
-        tf.reset_default_graph()
+        print("Now playing (or switching) to ", row.game, row.state)
         if index == df.shape[0] - 1:
             params_folder = base_dir + '/final'
         else:
             params_folder = base_dir + row.game + row.state
         ppo2.main(row.game, row.state, TIMESTEPS_PER_GAME, save_interval = 10, last_dir=last_dir, params_folder=params_folder)
-        last_dir = base_dir + '/' + row.game + row.state
+        last_dir = base_dir + row.game + row.state
+        tf.reset_default_graph()
 
     for index, row in df2.iterrows():
         print("Playing ", row.game, row.state)
