@@ -13,6 +13,6 @@ RUN . ~/venv/bin/activate && \
 
 ADD ppo2_agent.py ./agent.py
 ADD sonic_util.py .
-ADD params/ppo_v1/checkpoints/02300 ./params
+ADD params/ppo_v2SonicTheHedgehog2-GenesisAquaticRuinZone.Act1/checkpoints/00090 ./params
 
 CMD ["python", "-u", "/root/compo/agent.py"]

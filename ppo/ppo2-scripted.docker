@@ -1,0 +1,9 @@
+FROM openai/retro-agent:tensorflow
+RUN apt-get update && apt-get install -y libgtk2.0-dev && rm -rf /var/lib/apt/lists/*
+RUN . ~/venv/bin/activate && \
+pip install scipy tqdm joblib zmq dill progressbar2 cloudpickle opencv-python && \
+pip install --no-deps git+https://github.com/openai/baselines.git
+ADD ppo2_agent.py ./agent.py
+ADD sonic_util.py .
+ADD params/ppo_v2/final/checkpoints/00240 ./params
+CMD ["python", "-u", "/root/compo/agent.py"]
