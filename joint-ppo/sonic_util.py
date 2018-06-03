@@ -91,8 +91,10 @@ class AllowBacktracking(gym.Wrapper):
         return obs, rew, done, info
 
 class JointEnv(gym.Env):
-    def __init__(self, env_fns):
+    def __init__(self, env_fns, levels):
         self.env_fns = env_fns
+        self.levels = levels
+        self.num_envs = len(env_fns)
         self.env_idx = 0
         self.env = env_fns[0]()
         try:
@@ -103,9 +105,11 @@ class JointEnv(gym.Env):
 
     def reset(self, **kwargs):
         if self.env is not None:
+            print("Closing env")
             self.env.close()
         self.env_idx = (self.env_idx + 1) % len(self.env_fns)
         self.env = self.env_fns[self.env_idx]()
+        print("Now playing %s %s" % (self.levels[self.env_idx]))
         return self.env.reset(**kwargs)
 
     def step(self, action):
