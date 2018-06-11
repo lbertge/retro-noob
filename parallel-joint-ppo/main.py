@@ -6,13 +6,13 @@ import pandas as pd
 import os.path as osp
 import psutil
 import time
-import gc
 from baselines import logger
 from functools import partial
 from multiprocessing import JoinableQueue, Queue, Process
 
 from baselines.common.vec_env.dummy_vec_env import DummyVecEnv
-from sonic_util import make_local_env, JointEnv, SonicDiscretizer
+from baselines.common.vec_env.subproc_vec_env import SubprocVecEnv
+from sonic_util import make_local_env, JointEnv
 import baselines.ppo2.policies as policies
 import ppo2
 
@@ -39,9 +39,7 @@ def train(args):
     checkdir = osp.join(logger.get_dir(), 'checkpoints')
     os.makedirs(checkdir, exist_ok=True)
     last_savepath = checkdir + 'init'
-    interval = 0
-    config = tf.ConfigProto()
-    config.gpu_options.allow_growth=True
+
     train_data = pd.read_csv('../sonic-train.csv')
     env_fns = []
     levels = []
@@ -60,37 +58,35 @@ def train(args):
     grads = []
     # obs/action space is the same for all environments
 
+    config = tf.ConfigProto()
+    config.gpu_options.allow_growth=True
+
     pid = os.getpid()
     py = psutil.Process(pid)
 
+    # init params
+    with tf.Session(config=config):
+        model = ppo2.Model(policy=policies.CnnPolicy,
+                           ob_space=joint_env.env.observation_space,
+                           ac_space=joint_env.env.action_space,
+                           nbatch_act=nbatch_act,
+                           nsteps=steps_per_ep,
+                           nbatch_train=nbatch_train,
+                           ent_coef=ent_coef,
+                           vf_coef=vf_coef,
+                           max_grad_norm=max_grad_norm)
+
+        print('Saving init to', last_savepath)
+        model.save(last_savepath)
+
+    tf.reset_default_graph()
+
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
-    if args.last_savepath:
-        last_savepath = checkdir + '/' + args.last_savepath
-        interval = int(args.last_savepath)
-        print("Restoring at epoch %d" %interval)
-    else:
-        # init params
-        with tf.Session(config=config):
-            model = ppo2.Model(policy=policies.CnnPolicy,
-                               ob_space=joint_env.env.observation_space,
-                               ac_space=joint_env.env.action_space,
-                               nbatch_act=nbatch_act,
-                               nsteps=steps_per_ep,
-                               nbatch_train=nbatch_train,
-                               ent_coef=ent_coef,
-                               vf_coef=vf_coef,
-                               max_grad_norm=max_grad_norm)
-
-            print('Saving init to', last_savepath)
-            model.save(last_savepath)
-
-        tf.reset_default_graph()
-
+    interval = 0
     while True:
         print("epoch: %d" % interval)
-        session = tf.Session(config=config)
-        with session.as_default():
+        with tf.Session(config=config):
             # first, load previous model
             print("Loading last saved_model")
             model = ppo2.Model(policy=policies.CnnPolicy,
@@ -156,7 +152,6 @@ def main():
     parser = argparse.ArgumentParser(description = 'Joint PPO')
     parser.add_argument('params_folder', help='params directory')
     parser.add_argument('--workers', help='number of worker processes', default=4)
-    parser.add_argument('--last_savepath', help='restore params')
     args = parser.parse_args()
     train(args)
 

@@ -10,9 +10,10 @@ from sonic_util import make_local_env
 def run(game, state, params_dir):
     config = tf.ConfigProto()
     config.gpu_options.allow_growth = True
-    env = make_local_env(game=game, state=state, stack=True, scale_rew=True)
+    env = make(game=game, state=state, bk2dir='bk2dir/')
+    env = make_local_env(env, stack=True, scale_rew=True)
 
-    load_path = 'params_3/checkpoints/00151'
+    load_path = 'params/ppo_v2/' + game + state + 'checkpoints/0092'
 
     def env_fn():
         return env
@@ -22,16 +23,16 @@ def run(game, state, params_dir):
                            ob_space = env.observation_space,
                            ac_space = env.action_space,
                            nbatch_act = 1,
-                           nsteps = 4500,
-                           nbatch_train = 4500 // 4,
+                           nsteps = 4096,
+                           nbatch_train = 4096 // 4,
                            ent_coef=0.01,
                            vf_coef=0.5,
                            max_grad_norm=0.5)
 
         print(env.observation_space)
         print(env.action_space)
-        model.load(load_path)
-        runner = ppo2.Runner(env=DummyVecEnv([env_fn]), model=model, nsteps=4500, gamma=0.99, lam=0.95)
+        model.load(params_dir)
+        runner = ppo2.Runner(env=DummyVecEnv([env_fn]), model=model, nsteps=4096, gamma=0.99, lam=0.95)
         runner.run()
 
 def main():
